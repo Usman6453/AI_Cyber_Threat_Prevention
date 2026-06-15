@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>URL Threat Reporter</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0a0e1a;
+      --bg-card:    #111827;
+      --bg-card2:   #0d1321;
+      --border:     #1e2d45;
+      --accent:     #3b82f6;
+      --accent-lo:  rgba(59,130,246,0.1);
+      --safe:       #10b981;
+      --safe-lo:    rgba(16,185,129,0.1);
+      --danger:     #ef4444;
+      --danger-lo:  rgba(239,68,68,0.1);
+      --warn:       #f59e0b;
+      --text:       #e2e8f0;
+      --sub:        #64748b;
+      --sub2:       #94a3b8;
+      --mono:       'SF Mono','Fira Code','Cascadia Code',monospace;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      min-width: 380px;
+      max-width: 380px;
+      color: var(--text);
+      line-height: 1.4;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: var(--bg-card2);
+      border-bottom: 1px solid var(--border);
+      padding: 13px 15px;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+    }
+    .header-icon {
+      width: 36px; height: 36px;
+      background: var(--accent-lo);
+      border: 1px solid rgba(59,130,246,0.25);
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .header-icon svg { width: 19px; height: 19px; }
+    .header-text { flex: 1; min-width: 0; }
+    .header-title {
+      font-size: 13px; font-weight: 700;
+      color: var(--text); letter-spacing: 0.015em;
+    }
+    .header-sub {
+      font-size: 9.5px; color: var(--sub);
+      letter-spacing: 0.05em; text-transform: uppercase;
+      margin-top: 1px;
+    }
+    .header-badge {
+      font-size: 9px; font-weight: 700;
+      padding: 3px 8px; border-radius: 20px;
+      background: var(--accent-lo);
+      color: var(--accent);
+      border: 1px solid rgba(59,130,246,0.2);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    /* ── Body ── */
+    .body { padding: 13px; display: flex; flex-direction: column; gap: 10px; }
+
+    /* ── Status Card ── */
+    .status-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 13px 13px 13px 16px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.25s;
+    }
+    .status-card::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0; width: 3px;
+      background: var(--sub);
+      border-radius: 10px 0 0 10px;
+      transition: background 0.25s;
+    }
+    .status-card.safe   { border-color: rgba(16,185,129,0.2); }
+    .status-card.safe::before   { background: var(--safe); }
+    .status-card.phishing { border-color: rgba(239,68,68,0.2); }
+    .status-card.phishing::before { background: var(--danger); }
+
+    .status-top {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      margin-bottom: 9px;
+    }
+    .status-eyebrow {
+      font-size: 9px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--sub);
+    }
+    .status-pill {
+      font-size: 9.5px; font-weight: 700;
+      padding: 3px 9px; border-radius: 20px;
+      text-transform: uppercase; letter-spacing: 0.07em;
+      background: rgba(100,116,139,0.12);
+      color: var(--sub);
+      border: 1px solid rgba(100,116,139,0.18);
+      transition: background 0.25s, color 0.25s;
+    }
+    .status-pill.safe    { background: var(--safe-lo); color: var(--safe); border-color: rgba(16,185,129,0.22); }
+    .status-pill.phishing { background: var(--danger-lo); color: var(--danger); border-color: rgba(239,68,68,0.22); }
+
+    .status-value {
+      font-size: 19px; font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--sub2);
+      margin-bottom: 2px;
+      transition: color 0.25s;
+    }
+    .status-value.safe    { color: var(--safe); }
+    .status-value.phishing { color: var(--danger); }
+
+    .status-meta {
+      font-size: 10px; color: var(--sub);
+      margin-bottom: 9px; min-height: 14px;
+    }
+
+    .status-url-row {
+      display: flex; align-items: center; gap: 7px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 6px 10px;
+    }
+    .url-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--sub); flex-shrink: 0;
+      transition: background 0.25s;
+    }
+    .status-card.safe   .url-dot { background: var(--safe); }
+    .status-card.phishing .url-dot { background: var(--danger); }
+    .status-url {
+      font-size: 10.5px; color: var(--sub2);
+      font-family: var(--mono);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    /* ── Confidence bar ── */
+    .conf-row {
+      display: flex; align-items: center; gap: 8px;
+      margin-top: 10px;
+    }
+    .conf-label {
+      font-size: 9px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--sub); white-space: nowrap;
+    }
+    .conf-track {
+      flex: 1; height: 3px;
+      background: var(--border); border-radius: 2px; overflow: hidden;
+    }
+    .conf-fill {
+      height: 100%; width: 0%;
+      background: var(--sub);
+      border-radius: 2px;
+      transition: width 0.5s cubic-bezier(.4,0,.2,1), background 0.25s;
+    }
+    .status-card.safe   .conf-fill { background: var(--safe); }
+    .status-card.phishing .conf-fill { background: var(--danger); }
+    .conf-val {
+      font-size: 10px; font-weight: 600;
+      color: var(--sub2); white-space: nowrap;
+    }
+
+    /* ── Buttons ── */
+    .btn-row { display: flex; gap: 8px; }
+    .btn {
+      flex: 1; padding: 9px 12px;
+      font-size: 12px; font-weight: 600;
+      border: none; border-radius: 8px;
+      cursor: pointer; letter-spacing: 0.02em;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:hover  { opacity: 0.86; }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary  { background: var(--accent); color: #fff; }
+    .btn-ghost {
+      background: transparent;
+      color: var(--sub2);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { border-color: var(--sub); }
+
+    /* ── Divider ── */
+    .divider {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .divider-line { flex: 1; height: 1px; background: var(--border); }
+    .divider-label {
+      font-size: 9px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--sub);
+    }
+
+    /* ── History list ── */
+    .history-list {
+      list-style: none;
+      display: flex; flex-direction: column; gap: 5px;
+      max-height: 320px; overflow-y: auto;
+      padding-right: 3px;
+    }
+    .history-empty {
+      font-size: 11px; color: var(--sub);
+      text-align: center; padding: 20px 0;
+      font-style: italic;
+    }
+
+    .history-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 11px 8px 14px;
+      position: relative;
+      /* inset box-shadow replaces ::before so overflow:hidden is not needed */
+      box-shadow: inset 3px 0 0 0 var(--sub);
+    }
+    .history-item.safe    { border-color: rgba(16,185,129,0.14); box-shadow: inset 3px 0 0 0 var(--safe); }
+    .history-item.phishing { border-color: rgba(239,68,68,0.14); box-shadow: inset 3px 0 0 0 var(--danger); }
+
+    .history-row {
+      display: flex; justify-content: space-between;
+      align-items: center; margin-bottom: 5px;
+    }
+    .history-badge {
+      font-size: 9px; font-weight: 800;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      padding: 2px 7px; border-radius: 20px;
+    }
+    .history-badge.safe    { background: var(--safe-lo); color: var(--safe); }
+    .history-badge.phishing { background: var(--danger-lo); color: var(--danger); }
+    .history-meta { display: flex; align-items: center; gap: 6px; }
+    .history-risk {
+      font-size: 9px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      padding: 2px 6px; border-radius: 4px;
+      background: rgba(100,116,139,0.1); color: var(--sub);
+    }
+    .history-risk.high   { background: rgba(239,68,68,0.08); color: var(--danger); }
+    .history-risk.medium { background: rgba(245,158,11,0.08); color: var(--warn); }
+    .history-risk.low    { background: var(--safe-lo); color: var(--safe); }
+    .history-conf { font-size: 10px; color: var(--sub); }
+
+    /* ── URL row — scrollable and clearly readable ── */
+    .history-url-wrap {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 5px;
+      /* top/sides padding normal; bottom padding reserves space for scrollbar */
+      padding: 5px 9px 9px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      margin-top: 3px;
+    }
+    .history-url-wrap::-webkit-scrollbar { height: 3px; }
+    .history-url-wrap::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 2px; }
+    .history-url-wrap::-webkit-scrollbar-thumb { background: var(--sub); border-radius: 2px; }
+    .history-url-wrap::-webkit-scrollbar-thumb:hover { background: var(--sub2); }
+    .history-url {
+      display: block;          /* block so it stretches naturally */
+      white-space: nowrap;     /* never wrap — forces horizontal scroll */
+      font-size: 10.5px;
+      font-family: 'Courier New', Courier, monospace;
+      color: #c8d6e8;
+      letter-spacing: 0.01em;
+      line-height: 1.5;
+    }
+    .history-item.phishing .history-url-wrap { background: rgba(239,68,68,0.06); border-color: rgba(239,68,68,0.18); }
+    .history-item.phishing .history-url { color: #fca5a5; }
+    .history-item.safe     .history-url-wrap { background: rgba(16,185,129,0.05); border-color: rgba(16,185,129,0.15); }
+    .history-item.safe     .history-url { color: #6ee7b7; }
+
+    .history-ts {
+      font-size: 9px; color: var(--sub);
+      margin-top: 4px;
+    }
+    .history-newdomain {
+      display: inline-block;
+      font-size: 8.5px; font-weight: 800;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      background: rgba(245,158,11,0.12);
+      color: var(--warn);
+      border: 1px solid rgba(245,158,11,0.25);
+      border-radius: 4px;
+      padding: 1px 5px;
+      margin-left: 4px;
+      vertical-align: middle;
+    }
+
+    /* ── Scrollbar (global) ── */
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .history-list::-webkit-scrollbar { width: 4px; }
+    .history-list::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); border-radius: 2px; }
+    .history-list::-webkit-scrollbar-thumb { background: var(--sub); border-radius: 2px; }
+    .history-list::-webkit-scrollbar-thumb:hover { background: var(--sub2); }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="header-icon">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L4 6v6c0 4.42 3.47 8.56 8 9.56 4.53-1 8-5.14 8-9.56V6l-8-4z" fill="#3b82f6" opacity=".15"/>
+        <path d="M12 2L4 6v6c0 4.42 3.47 8.56 8 9.56 4.53-1 8-5.14 8-9.56V6l-8-4z" stroke="#3b82f6" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M9 12l2 2 4-4" stroke="#3b82f6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="header-text">
+      <div class="header-title">URL Threat Reporter</div>
+      <div class="header-sub">Phishing Detection Engine</div>
+    </div>
+    <div class="header-badge">v1.2</div>
+  </div>
+
+  <div class="body">
+
+    <div id="current-status" class="status-card">
+      <div class="status-top">
+        <span class="status-eyebrow">Current Page</span>
+        <span class="status-pill" id="status-pill">Pending</span>
+      </div>
+      <div class="status-value" id="status-value">Waiting for scan…</div>
+      <div class="status-meta" id="status-meta"></div>
+      <div class="status-url-row">
+        <div class="url-dot"></div>
+        <div class="status-url" id="status-url">No URL loaded</div>
+      </div>
+      <div class="conf-row" id="conf-row" style="display:none">
+        <span class="conf-label">Confidence</span>
+        <div class="conf-track"><div class="conf-fill" id="conf-fill"></div></div>
+        <span class="conf-val" id="conf-val"></span>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="scan-active-btn">↺&nbsp; Scan Active Tab</button>
+      <button class="btn btn-ghost" id="allow-site-btn">✓&nbsp; Allow Site</button>
+    </div>
+
+    <div class="divider">
+      <div class="divider-line"></div>
+      <div class="divider-label">Recent Scans</div>
+      <div class="divider-line"></div>
+    </div>
+
+    <ul class="history-list" id="history"></ul>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

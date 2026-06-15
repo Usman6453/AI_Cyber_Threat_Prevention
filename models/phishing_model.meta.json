@@ -1,0 +1,11 @@
+{
+  "sample_size": 235795,
+  "holdout_size": 47159,
+  "decision_threshold": 0.59,
+  "holdout_accuracy": 0.9973705973409105,
+  "holdout_precision": 0.9957526961146402,
+  "holdout_recall": 0.9996662958843159,
+  "holdout_f1": 0.9977056581430633,
+  "holdout_roc_auc": 0.998743160044513,
+  "source_dataset": "retrain_input_1781426368.csv"
+}
